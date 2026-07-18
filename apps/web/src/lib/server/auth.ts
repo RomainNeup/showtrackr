@@ -1,5 +1,5 @@
 /**
- * Single-user session-cookie auth (PLAN §3, "Lucia-style maison").
+ * Multi-account session-cookie auth (PLAN §3, "Lucia-style maison").
  *
  * Design (documented simple approach, no external auth dependency):
  *  - Passwords are hashed with Node's `scrypt` and stored as
@@ -7,10 +7,12 @@
  *  - Sessions are STATELESS: the schema has no `sessions` table (see CONTRACT),
  *    so the cookie carries an HMAC-SHA256-signed payload `{uid, exp}`. The
  *    signature (keyed by SESSION_SECRET) makes it tamper-proof; expiry bounds
- *    its lifetime. No server-side session store needed for a mono-user app.
+ *    its lifetime. The `uid` claim scopes every request to exactly one account,
+ *    so logging in as another user simply re-issues the cookie with a new uid.
  *
- * The schema stays multi-user-ready (`user_id` everywhere); this module just
- * resolves "the current user" from the cookie.
+ * The schema is multi-user (`user_id` everywhere); this module resolves "the
+ * current user" from the cookie and owns account creation + the open-
+ * registration policy (ALLOW_REGISTRATION).
  */
 import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
 import type { Cookies } from '@sveltejs/kit';
@@ -152,13 +154,41 @@ export async function findUserByEmail(email: string) {
 	return rows[0] ?? null;
 }
 
-/** Count users — drives the first-run "create account" flow on /login. */
+/** Count users — drives the bootstrap ("first account") registration path. */
 export async function userCount(): Promise<number> {
 	const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.users);
 	return row?.n ?? 0;
 }
 
-/** Create the single user on first run. Returns the new user id. */
+/**
+ * Whether open self-registration is enabled via `ALLOW_REGISTRATION`.
+ *
+ * Default (unset/empty) is ENABLED, so a fresh self-host works out of the box.
+ * A self-hoster locks new signups down by setting it to a falsy token
+ * (`false`/`0`/`no`/`off`/`disabled`, case-insensitive). Any other value keeps
+ * it open. This only reflects the FLAG — the bootstrap exception (always allow
+ * the very first account) lives in `isRegistrationOpen()`.
+ */
+export function registrationFlagEnabled(): boolean {
+	const v = (env.ALLOW_REGISTRATION ?? '').trim().toLowerCase();
+	if (v === '') return true; // default: open
+	return !['false', '0', 'no', 'off', 'disabled'].includes(v);
+}
+
+/**
+ * Effective registration policy: open when the flag allows it OR when no
+ * account exists yet (bootstrap — the first account is always creatable so a
+ * locked-down instance can still be initialised).
+ */
+export async function isRegistrationOpen(): Promise<boolean> {
+	if (registrationFlagEnabled()) return true;
+	return (await userCount()) === 0;
+}
+
+/**
+ * Create a user account. Returns the new user id. Callers must enforce the
+ * registration policy (`isRegistrationOpen`) and password rules before calling.
+ */
 export async function createUser(input: {
 	email: string;
 	password: string;

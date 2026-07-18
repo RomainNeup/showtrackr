@@ -10,7 +10,7 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { resolveUser } from '$lib/server/auth';
 
-const PUBLIC_ROUTES = new Set(['/login']);
+const PUBLIC_ROUTES = new Set(['/login', '/register']);
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.user = await resolveUser(event.cookies);
@@ -21,7 +21,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (!event.locals.user && !isPublic) {
 		throw redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
 	}
-	if (event.locals.user && path === '/login') {
+	// An already-authenticated user has no business on the auth screens.
+	if (event.locals.user && isPublic) {
 		throw redirect(303, '/');
 	}
 
