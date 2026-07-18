@@ -1,6 +1,6 @@
-# @mytvtime/importer
+# @showtrackr/importer
 
-GDPR-export backfill CLI for MyTVTime. Implements the 8-step pipeline from
+GDPR-export backfill CLI for ShowTrackr. Implements the 8-step pipeline from
 `PLAN.md` §8: it reads a TV Time GDPR export, resolves each show against TMDB,
 hydrates the local catalog, and reconstructs the full episode-by-episode watch
 history — then recomputes `user_stats` and prints a validation report.
@@ -54,16 +54,16 @@ that steps 3–7 depend on, so when you request a single later step with
 
 ```bash
 # Build
-pnpm --filter @mytvtime/importer build
+pnpm --filter @showtrackr/importer build
 
 # Full backfill (inside the importer container, or locally with env set)
-TMDB_API_KEY=... DATABASE_URL=postgres://... mytvtime-import --data-dir /gdpr-data
+TMDB_API_KEY=... DATABASE_URL=postgres://... showtrackr-import --data-dir /gdpr-data
 
 # Preview without touching the DB (still calls TMDB, prints estimated numbers)
-TMDB_API_KEY=... mytvtime-import --dry-run --data-dir ../../gdpr-data
+TMDB_API_KEY=... showtrackr-import --dry-run --data-dir ../../gdpr-data
 
 # Re-run one step (idempotent; context steps auto-run)
-mytvtime-import --only-step 5
+showtrackr-import --only-step 5
 ```
 
 ### Flags
@@ -86,7 +86,7 @@ mytvtime-import --only-step 5
 ## Idempotency
 
 Every write is a natural-key upsert on the unique constraints declared in
-`@mytvtime/db` (`follows(user,show)`, `episode_watches(user,episode)`,
+`@showtrackr/db` (`follows(user,show)`, `episode_watches(user,episode)`,
 `catalog_episodes(show,season,episode)`, …), so re-running the importer never
 duplicates rows. Shows are found-or-created by their TVDB id.
 

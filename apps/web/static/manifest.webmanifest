@@ -1,6 +1,6 @@
 {
-	"name": "MyTVTime",
-	"short_name": "MyTVTime",
+	"name": "ShowTrackr",
+	"short_name": "ShowTrackr",
 	"description": "Self-hosted TV Time — track shows & movies, mark episodes watched, log your viewing hours.",
 	"start_url": "/",
 	"scope": "/",

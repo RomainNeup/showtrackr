@@ -1,5 +1,5 @@
 /**
- * MyTVTime — Drizzle schema (PostgreSQL 16).
+ * ShowTrackr — Drizzle schema (PostgreSQL 16).
  *
  * Authoritative implementation of CONTRACT.md §"Database schema".
  * All ids are bigint (bigserial for auto-increment PKs); all timestamps are timestamptz.

@@ -1,8 +1,8 @@
 {
-  "name": "@mytvtime/db",
+  "name": "@showtrackr/db",
   "version": "0.1.0",
   "type": "module",
-  "description": "Drizzle schema, client factory and SQL migrations for MyTVTime (PostgreSQL 16).",
+  "description": "Drizzle schema, client factory and SQL migrations for ShowTrackr (PostgreSQL 16).",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# One-shot image for the MyTVTime GDPR backfill importer CLI.
+# One-shot image for the ShowTrackr GDPR backfill importer CLI.
 #
 # IMPORTANT: the build context MUST be the repository root (see docker-compose.yml)
-# so the pnpm workspace manifest and the @mytvtime/db workspace package are
+# so the pnpm workspace manifest and the @showtrackr/db workspace package are
 # available during install and build.
 
 # ----------------------------------------------------------------------------
@@ -25,10 +25,10 @@ COPY packages/db/package.json ./packages/db/package.json
 RUN pnpm install --frozen-lockfile
 COPY packages/db ./packages/db
 COPY packages/importer ./packages/importer
-# Build @mytvtime/db first (tsc -> dist) so the importer's own tsc can resolve its
+# Build @showtrackr/db first (tsc -> dist) so the importer's own tsc can resolve its
 # .d.ts, then build the importer. No `|| true` guard: a failing tsc must fail the image.
-RUN pnpm --filter @mytvtime/db run build
-RUN pnpm --filter @mytvtime/importer run build
+RUN pnpm --filter @showtrackr/db run build
+RUN pnpm --filter @showtrackr/importer run build
 
 # ----------------------------------------------------------------------------
 # Stage 2 — runtime: run the importer as a non-root, one-shot process

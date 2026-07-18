@@ -1,7 +1,7 @@
-# @mytvtime/db
+# @showtrackr/db
 
 Drizzle ORM schema, typed client factory, and versioned SQL migrations for
-**MyTVTime** on **PostgreSQL 16**. This package is the single source of truth for
+**ShowTrackr** on **PostgreSQL 16**. This package is the single source of truth for
 the database contract — every other package (`apps/web`, `packages/importer`)
 imports its schema and inferred types from here and never reaches for raw SQL DDL.
 
@@ -15,7 +15,7 @@ pnpm build      # tsc → dist/ (ESM + .d.ts)
 ## Usage
 
 ```ts
-import { createDb, catalogShows, type Show, type NewShow } from '@mytvtime/db';
+import { createDb, catalogShows, type Show, type NewShow } from '@showtrackr/db';
 
 const { db, client } = createDb(process.env.DATABASE_URL!);
 
@@ -30,7 +30,7 @@ await client.end(); // close the pool on shutdown
   (relational `db.query.*` helpers included); `client` is the underlying
   postgres.js connection — call `client.end()` to close.
 - The full `schema` object and every table are re-exported (via `export *`), so
-  `import * as schema from '@mytvtime/db'` or `'@mytvtime/db/schema'` both work.
+  `import * as schema from '@showtrackr/db'` or `'@showtrackr/db/schema'` both work.
 - Every table exposes inferred types: `Show`/`NewShow`, `Episode`/`NewEpisode`,
   `Follow`/`NewFollow`, … plus enum unions `FollowStatus`, `ListKind`, `RefType`.
 
@@ -66,7 +66,7 @@ Apply migrations one of two ways:
 # Uses drizzle-orm's postgres-js migrator (NOT drizzle-kit, which is pruned from the
 # prod image). Idempotent — tracked in drizzle.__drizzle_migrations. Requires a build first.
 pnpm build
-DATABASE_URL=postgres://mytvtime:mytvtime@db:5432/mytvtime pnpm run migrate
+DATABASE_URL=postgres://showtrackr:showtrackr@db:5432/showtrackr pnpm run migrate
 
 # Option B — plain psql (no Node needed; ad-hoc / debugging)
 psql "$DATABASE_URL" -f drizzle/0000_init.sql

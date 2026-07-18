@@ -1,13 +1,13 @@
 /**
  * Database access. All DB usage in the app goes through this module so the
  * connection is created exactly once per process. The Drizzle schema + client
- * factory come from the `@mytvtime/db` workspace package (see CONTRACT.md).
+ * factory come from the `@showtrackr/db` workspace package (see CONTRACT.md).
  *
  * We only ever import from `$lib/server/*`, keeping the DB + secrets off the
  * client bundle (SvelteKit enforces this boundary).
  */
 import { env } from '$env/dynamic/private';
-import { createDb, schema, type Database } from '@mytvtime/db';
+import { createDb, schema, type Database } from '@showtrackr/db';
 
 // Lazily create the connection on first use. We must NOT connect (or throw) at
 // module-load time: SvelteKit's build/analyse step imports server modules with

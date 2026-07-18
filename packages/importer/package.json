@@ -1,12 +1,12 @@
 {
-  "name": "@mytvtime/importer",
+  "name": "@showtrackr/importer",
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "GDPR export backfill CLI for MyTVTime (PLAN §8). Reconstructs the episode-by-episode watch history from TV Time's per-show watermark.",
+  "description": "GDPR export backfill CLI for ShowTrackr (PLAN §8). Reconstructs the episode-by-episode watch history from TV Time's per-show watermark.",
   "license": "MIT",
   "bin": {
-    "mytvtime-import": "./dist/index.js"
+    "showtrackr-import": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -15,7 +15,7 @@
     "dev": "node --experimental-strip-types src/index.ts"
   },
   "dependencies": {
-    "@mytvtime/db": "workspace:*",
+    "@showtrackr/db": "workspace:*",
     "commander": "^12.1.0",
     "csv-parse": "^5.5.6",
     "drizzle-orm": "^0.36.4"

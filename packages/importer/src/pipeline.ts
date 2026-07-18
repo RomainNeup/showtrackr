@@ -1203,7 +1203,7 @@ export class Pipeline {
     const h = (m: number) => (m / 60).toFixed(0);
     const line = "─".repeat(66);
     const fmt = (got: number, exp: number, d: number) => `computed=${got}  expected=${exp}  Δ=${d.toFixed(1)}%`;
-    console.log(`\n${line}\n  MyTVTime import — VALIDATION REPORT${this.dryRun ? "  (DRY RUN)" : ""}\n${line}`);
+    console.log(`\n${line}\n  ShowTrackr import — VALIDATION REPORT${this.dryRun ? "  (DRY RUN)" : ""}\n${line}`);
     console.log(`  Shows followed        : ${r.showsFollowed}`);
     console.log(`  Shows resolved (TMDB) : ${r.showsResolved}/${this.shows.size}`);
     console.log(`  Episode provenance    : ${r.trackedEpisodes} tracking + ${r.fallbackEpisodes} watermark-fallback`);

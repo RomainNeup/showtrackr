@@ -1,10 +1,10 @@
 /**
- * @mytvtime/db — public barrel.
+ * @showtrackr/db — public barrel.
  *
  * Re-exports the Drizzle schema, the `createDb` client factory, and inferred
  * TypeScript row types for every table. Consumers should import from here:
  *
- *   import { createDb, catalogShows, type Show } from '@mytvtime/db';
+ *   import { createDb, catalogShows, type Show } from '@showtrackr/db';
  */
 export * from './schema.js';
 export { createDb, type Database, type CreateDbResult, type CreateDbOptions } from './client.js';

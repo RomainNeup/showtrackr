@@ -9,7 +9,7 @@ export default defineConfig({
   schema: './src/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://mytvtime:mytvtime@localhost:5432/mytvtime',
+    url: process.env.DATABASE_URL ?? 'postgres://showtrackr:showtrackr@localhost:5432/showtrackr',
   },
   strict: true,
   verbose: true,

@@ -10,7 +10,7 @@
 <div class="login page">
 	<div class="brand">
 		<div class="logo" aria-hidden="true">📺</div>
-		<h1>MyTVTime</h1>
+		<h1>ShowTrackr</h1>
 		<p class="muted">
 			{firstRun ? 'Create your account to get started.' : 'Sign in to continue.'}
 		</p>

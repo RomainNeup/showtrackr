@@ -1,5 +1,5 @@
 # =============================================================================
-# MyTVTime — Caddy reverse proxy
+# ShowTrackr — Caddy reverse proxy
 #
 # The public site address is taken from PUBLIC_BASE_URL in the root .env
 # (e.g. https://tv.example.com). Caddy provisions and auto-renews a TLS

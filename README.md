@@ -1,4 +1,4 @@
-# MyTVTime
+# ShowTrackr
 
 Self-hosted, **mobile-first** TV Time clone: follow shows, mark episodes / shows /
 movies as watched, rate them, track watch-time and stats, search & follow content.

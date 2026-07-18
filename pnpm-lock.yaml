@@ -10,7 +10,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@mytvtime/db':
+      '@showtrackr/db':
         specifier: workspace:*
         version: link:../../packages/db
     devDependencies:
@@ -57,7 +57,7 @@ importers:
 
   packages/importer:
     dependencies:
-      '@mytvtime/db':
+      '@showtrackr/db':
         specifier: workspace:*
         version: link:../db
       commander:

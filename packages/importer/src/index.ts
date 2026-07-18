@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * @mytvtime/importer — GDPR export backfill CLI (PLAN §8).
+ * @showtrackr/importer — GDPR export backfill CLI (PLAN §8).
  *
  * Usage:
- *   mytvtime-import [--dry-run] [--data-dir <path>] [--only-step <0-7>]
+ *   showtrackr-import [--dry-run] [--data-dir <path>] [--only-step <0-7>]
  *
  * Environment:
  *   DATABASE_URL   Postgres connection string (required unless --dry-run).
@@ -27,8 +27,8 @@ interface CliOptions {
 async function main(): Promise<void> {
   const program = new Command();
   program
-    .name("mytvtime-import")
-    .description("Backfill MyTVTime from a TV Time GDPR export (idempotent).")
+    .name("showtrackr-import")
+    .description("Backfill ShowTrackr from a TV Time GDPR export (idempotent).")
     .option("--dry-run", "read + resolve everything but write nothing to the DB", false)
     .option("--data-dir <path>", "path to the GDPR export directory", process.env.GDPR_DATA_DIR ?? "/gdpr-data")
     .option("--only-step <n>", "run a single pipeline step (0-7); context steps 0-2 auto-run when needed")

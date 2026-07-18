@@ -1,18 +1,18 @@
-# @mytvtime/web — SvelteKit app (frontend + API + PWA)
+# @showtrackr/web — SvelteKit app (frontend + API + PWA)
 
-Mobile-first, installable PWA for MyTVTime. SvelteKit (Svelte 5 runes) fullstack
+Mobile-first, installable PWA for ShowTrackr. SvelteKit (Svelte 5 runes) fullstack
 with `@sveltejs/adapter-node`. All data access goes through the shared
-`@mytvtime/db` package (Drizzle + Postgres); TMDB is the metadata provider.
+`@showtrackr/db` package (Drizzle + Postgres); TMDB is the metadata provider.
 
 ## Build & run
 
 ```bash
-pnpm --filter @mytvtime/db build      # produces dist/ that this app imports
-pnpm --filter @mytvtime/web build     # vite build → ./build (adapter-node)
+pnpm --filter @showtrackr/db build      # produces dist/ that this app imports
+pnpm --filter @showtrackr/web build     # vite build → ./build (adapter-node)
 node apps/web/build                   # start (needs env vars below)
 ```
 
-Type/lint gate: `pnpm --filter @mytvtime/web check` (svelte-check, 0 errors).
+Type/lint gate: `pnpm --filter @showtrackr/web check` (svelte-check, 0 errors).
 
 ### Environment (server-only, read at runtime via `$env/dynamic/private`)
 
@@ -113,7 +113,7 @@ the client-safe `src/lib/tmdb-image.ts` (no secret needed).
 
 ## Assumptions & notes
 
-- `@mytvtime/db` exports a camelCase `schema` barrel + `createDb(url)` returning
+- `@showtrackr/db` exports a camelCase `schema` barrel + `createDb(url)` returning
   `{ db, client }`. The DB client is created **lazily** (a Proxy) so the build's
   analyse step doesn't fail when env is absent.
 - Show/movie routes key off the **local catalog id**, not the TMDB id; Search

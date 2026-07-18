@@ -106,7 +106,7 @@ Then set, at minimum:
 |---|---|
 | `TMDB_API_KEY` | your TMDB v3 key or v4 token (step 3) |
 | `POSTGRES_PASSWORD` | a strong password — `openssl rand -hex 24` |
-| `DATABASE_URL` | the same password, e.g. `postgres://mytvtime:<password>@db:5432/mytvtime` |
+| `DATABASE_URL` | the same password, e.g. `postgres://showtrackr:<password>@db:5432/showtrackr` |
 | `SESSION_SECRET` | `openssl rand -hex 32` |
 
 Bring the stack up so the database exists and migrations are applied:

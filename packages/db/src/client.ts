@@ -1,5 +1,5 @@
 /**
- * Typed Drizzle client factory for MyTVTime.
+ * Typed Drizzle client factory for ShowTrackr.
  *
  * Uses the postgres.js driver (single dependency, ESM-native, no build step).
  * `createDb(url)` returns a drizzle instance with the full schema attached,

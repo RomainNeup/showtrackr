@@ -1,25 +1,37 @@
 name: showtrackr
 
 # =============================================================================
-# ShowTrackr — Docker composition
+# ShowTrackr — production composition (deploy from registry, NO local build)
+#
+# Pulls the prebuilt multi-arch app image from GHCR instead of building it
+# locally. Use this on your server/VPS/Raspberry Pi.
 #
 #   db       PostgreSQL 16 (persistent volume, healthchecked)
-#   migrate  one-shot: applies Drizzle migrations, then exits
-#   app      SvelteKit server (SSR + API + PWA + cron), built from apps/web
+#   migrate  one-shot: applies Drizzle migrations, then exits (same app image)
+#   app      SvelteKit server (SSR + API + PWA + cron), pulled from GHCR
 #   caddy    OPTIONAL reverse proxy + automatic HTTPS on :443 (profile: tls)
-#   importer OPTIONAL one-shot GDPR backfill (profile: import)
+#
+# The `importer` service is intentionally OMITTED here: its image is NOT
+# published to GHCR. The one-time GDPR backfill is run from source using the
+# dev compose file instead:
+#   docker compose --profile import run --rm importer
 #
 # Usage:
 #   cp .env.example .env && $EDITOR .env
 #
-#   # Default (HTTP-first): db -> migrate -> app, published on http://<host>:${APP_PORT:-8080}
-#   docker compose up -d                              # NO caddy started
+#   # Start (pulls the image automatically on first run):
+#   docker compose -f docker-compose.prod.yml up -d
+#
+#   # Update to the newest published image, then recreate:
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
 #
 #   # Optional HTTPS: also start caddy (needs a real https domain in PUBLIC_BASE_URL)
-#   docker compose --profile tls up -d
+#   docker compose -f docker-compose.prod.yml --profile tls up -d
 #
-#   # Optional data import (GDPR backfill)
-#   docker compose --profile import run --rm importer
+# Image tag selection (SHOWTRACKR_TAG, defaults to `latest`):
+#   Pin a specific build for reproducible/rollback-friendly deploys, e.g.
+#   SHOWTRACKR_TAG=sha-1a2b3c4 docker compose -f docker-compose.prod.yml up -d
 # =============================================================================
 
 services:
@@ -43,10 +55,8 @@ services:
       - internal
 
   migrate:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    image: showtrackr-app:latest
+    # Same published app image as `app` — it also contains the compiled migrator.
+    image: ghcr.io/romainneup/showtrackr:${SHOWTRACKR_TAG:-latest}
     restart: "no"
     # Applies pending Drizzle migrations at runtime, then exits 0.
     # The @showtrackr/db package must expose a runtime-safe `migrate` script
@@ -64,10 +74,7 @@ services:
       - internal
 
   app:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    image: showtrackr-app:latest
+    image: ghcr.io/romainneup/showtrackr:${SHOWTRACKR_TAG:-latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -101,8 +108,8 @@ services:
 
   caddy:
     image: caddy:2-alpine
-    # OPTIONAL — only starts with `docker compose --profile tls up -d`.
-    # Default `docker compose up -d` serves plain HTTP via the app's published port.
+    # OPTIONAL — only starts with `docker compose -f docker-compose.prod.yml --profile tls up -d`.
+    # Default `up -d` serves plain HTTP via the app's published port.
     profiles:
       - tls
     restart: unless-stopped
@@ -118,33 +125,11 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
       ACME_EMAIL: ${ACME_EMAIL:-}
     volumes:
+      # ./caddy/Caddyfile MUST exist on the host for the tls profile to start.
+      # If you don't have it, skip the tls profile (plain-HTTP works without caddy).
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data     # certificates & ACME state (must persist)
       - caddy_config:/config
-    networks:
-      - internal
-
-  importer:
-    build:
-      context: .
-      dockerfile: packages/importer/Dockerfile
-    image: showtrackr-importer:latest
-    profiles:
-      - import
-    restart: "no"
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
-      TMDB_API_KEY: ${TMDB_API_KEY}
-      GDPR_DATA_DIR: ${GDPR_DATA_DIR:-/gdpr-data}
-    volumes:
-      # GDPR export lives at the repo root; mounted read-only.
-      - ./gdpr-data:/gdpr-data:ro
-    depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
       - internal
 

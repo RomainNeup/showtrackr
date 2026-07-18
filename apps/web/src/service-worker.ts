@@ -10,7 +10,7 @@ import { build, files, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-const CACHE = `mytvtime-cache-${version}`;
+const CACHE = `showtrackr-cache-${version}`;
 const APP_SHELL = [...build, ...files];
 
 sw.addEventListener('install', (event) => {

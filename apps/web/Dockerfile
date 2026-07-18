@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# Multi-stage image for the MyTVTime SvelteKit app (Node adapter).
+# Multi-stage image for the ShowTrackr SvelteKit app (Node adapter).
 #
 # IMPORTANT: the build context MUST be the repository root (see docker-compose.yml)
-# so the pnpm workspace manifest and the @mytvtime/db workspace package are
+# so the pnpm workspace manifest and the @showtrackr/db workspace package are
 # available during install and build.
 
 # ----------------------------------------------------------------------------
@@ -27,11 +27,11 @@ RUN pnpm install --frozen-lockfile
 # Sources required to build the web app and its workspace dependency.
 COPY packages/db ./packages/db
 COPY apps/web ./apps/web
-# @mytvtime/db ships compiled: it MUST be built (tsc -> packages/db/dist) BEFORE the
+# @showtrackr/db ships compiled: it MUST be built (tsc -> packages/db/dist) BEFORE the
 # web build, which imports it via its dist/ entrypoints. Order matters.
-RUN pnpm --filter @mytvtime/db run build
+RUN pnpm --filter @showtrackr/db run build
 # adapter-node emits a self-contained server at apps/web/build/index.js
-RUN pnpm --filter @mytvtime/web run build
+RUN pnpm --filter @showtrackr/web run build
 
 # ----------------------------------------------------------------------------
 # Stage 2 — prod-deps: production-only dependency tree (flat, via node-linker=hoisted)
@@ -40,7 +40,7 @@ FROM base AS prod-deps
 COPY pnpm-workspace.yaml .npmrc package.json pnpm-lock.yaml* ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/db/package.json ./packages/db/package.json
-# packages/db source is needed because @mytvtime/db is a workspace dependency
+# packages/db source is needed because @showtrackr/db is a workspace dependency
 # (it is symlinked into node_modules by the install).
 COPY packages/db ./packages/db
 RUN pnpm install --frozen-lockfile --prod
@@ -60,7 +60,7 @@ WORKDIR /app
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 # The db package MUST come from the `build` stage so it carries the COMPILED dist/
 # (prod-deps never runs tsc). This provides dist/migrate.js for the migrate service
-# and dist/index.js for the @mytvtime/db symlink in node_modules. drizzle/ (the SQL
+# and dist/index.js for the @showtrackr/db symlink in node_modules. drizzle/ (the SQL
 # migrations, resolved as ../drizzle relative to dist/migrate.js) travels with it.
 COPY --from=build --chown=node:node /app/packages/db ./packages/db
 COPY --from=prod-deps --chown=node:node /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
