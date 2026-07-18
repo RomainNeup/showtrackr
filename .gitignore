@@ -1,5 +1,6 @@
-# PII — never commit the GDPR export
+# PII — never commit the GDPR export (folder or archive)
 gdpr-data/
+*.zip
 
 # Internal build docs (private watching stats + AI-agent build scaffolding)
 PLAN.md

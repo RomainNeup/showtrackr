@@ -52,6 +52,7 @@
 
 <div class="episode-row" class:watched={checked}>
 	<form
+		class="check-form"
 		method="POST"
 		action="?/toggleEpisode"
 		use:enhance={() => {
@@ -134,9 +135,17 @@
 		color: var(--text-muted);
 	}
 
+	/* The wrapping form is the flex item in .episode-row; keep it from being
+	   compressed on narrow screens so the circular button stays 1:1. */
+	.check-form {
+		flex-shrink: 0;
+	}
+
 	.check {
+		flex-shrink: 0;
 		width: 30px;
 		height: 30px;
+		min-width: 30px;
 		min-height: 30px;
 		border-radius: 50%;
 		border: 2px solid var(--border);
