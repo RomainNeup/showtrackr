@@ -1,0 +1,15 @@
+# PII — never commit the GDPR export
+gdpr-data/
+
+# Internal build docs (private watching stats + AI-agent build scaffolding)
+PLAN.md
+CONTRACT.md
+
+node_modules/
+.env
+.svelte-kit/
+build/
+dist/
+pgdata/
+*.log
+.DS_Store

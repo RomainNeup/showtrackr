@@ -1,0 +1,158 @@
+name: mytvtime
+
+# =============================================================================
+# MyTVTime — Docker composition
+#
+#   db       PostgreSQL 16 (persistent volume, healthchecked)
+#   migrate  one-shot: applies Drizzle migrations, then exits
+#   app      SvelteKit server (SSR + API + PWA + cron), built from apps/web
+#   caddy    OPTIONAL reverse proxy + automatic HTTPS on :443 (profile: tls)
+#   importer OPTIONAL one-shot GDPR backfill (profile: import)
+#
+# Usage:
+#   cp .env.example .env && $EDITOR .env
+#
+#   # Default (HTTP-first): db -> migrate -> app, published on http://<host>:${APP_PORT:-8080}
+#   docker compose up -d                              # NO caddy started
+#
+#   # Optional HTTPS: also start caddy (needs a real https domain in PUBLIC_BASE_URL)
+#   docker compose --profile tls up -d
+#
+#   # Optional data import (GDPR backfill)
+#   docker compose --profile import run --rm importer
+# =============================================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mytvtime}
+      # No baked-in default: compose errors out if POSTGRES_PASSWORD is unset/empty.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env (openssl rand -hex 24)}
+      POSTGRES_DB: ${POSTGRES_DB:-mytvtime}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mytvtime} -d ${POSTGRES_DB:-mytvtime}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - internal
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: mytvtime-app:latest
+    restart: "no"
+    # Applies pending Drizzle migrations at runtime, then exits 0.
+    # The @mytvtime/db package must expose a runtime-safe `migrate` script
+    # (drizzle-orm migrator, not drizzle-kit — see README "Migrations").
+    working_dir: /app/packages/db
+    # Run the compiled migrator directly with node — avoids corepack fetching a
+    # pnpm version that requires a newer Node than this image ships.
+    command: ["node", "dist/migrate.js"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  app:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: mytvtime-app:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      TMDB_API_KEY: ${TMDB_API_KEY}
+      SESSION_SECRET: ${SESSION_SECRET}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      # adapter-node uses ORIGIN for its CSRF origin check on form POSTs.
+      # Must equal the URL you open in the browser, or form actions return 403.
+      ORIGIN: ${PUBLIC_BASE_URL}
+    # Published directly to the host for plain-HTTP access: http://<host-ip>:${APP_PORT}
+    # `expose` is kept so the optional caddy proxy (profile: tls) can reach it internally.
+    ports:
+      - "${APP_PORT:-8080}:3000"
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # Node 20 ships a global fetch; treat any non-5xx response as healthy.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2-alpine
+    # OPTIONAL — only starts with `docker compose --profile tls up -d`.
+    # Default `docker compose up -d` serves plain HTTP via the app's published port.
+    profiles:
+      - tls
+    restart: unless-stopped
+    depends_on:
+      app:
+        # Wait for the app to be healthy so Caddy doesn't serve early 502s.
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 (QUIC)
+    environment:
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data     # certificates & ACME state (must persist)
+      - caddy_config:/config
+    networks:
+      - internal
+
+  importer:
+    build:
+      context: .
+      dockerfile: packages/importer/Dockerfile
+    image: mytvtime-importer:latest
+    profiles:
+      - import
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      TMDB_API_KEY: ${TMDB_API_KEY}
+      GDPR_DATA_DIR: ${GDPR_DATA_DIR:-/gdpr-data}
+    volumes:
+      # GDPR export lives at the repo root; mounted read-only.
+      - ./gdpr-data:/gdpr-data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:
+    driver: bridge

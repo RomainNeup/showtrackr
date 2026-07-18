@@ -1,0 +1,1 @@
+ALTER TABLE "movie_watches" ADD COLUMN "watch_count" integer DEFAULT 1 NOT NULL;

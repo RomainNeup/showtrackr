@@ -1,0 +1,32 @@
+# =============================================================================
+# MyTVTime — Caddy reverse proxy
+#
+# The public site address is taken from PUBLIC_BASE_URL in the root .env
+# (e.g. https://tv.example.com). Caddy provisions and auto-renews a TLS
+# certificate for that domain via Let's Encrypt and proxies to the app.
+# =============================================================================
+
+# --- Optional global options -------------------------------------------------
+# To receive Let's Encrypt expiry notices, set ACME_EMAIL in .env AND uncomment
+# the block below. Keep them coupled: an uncommented `email` directive with an
+# empty ACME_EMAIL fails to parse ("wrong argument count") and Caddy won't start
+# (verified with `caddy validate`). So do not uncomment while ACME_EMAIL is blank.
+# {
+# 	email {$ACME_EMAIL}
+# }
+
+# --- Public site -------------------------------------------------------------
+# Automatic HTTPS is enabled because the site address includes a real domain.
+{$PUBLIC_BASE_URL} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# --- Local testing fallback --------------------------------------------------
+# To run over plain HTTP on your machine (no TLS), set PUBLIC_BASE_URL=http://localhost
+# in .env. Caddy then serves on :80 automatically. If you prefer to be explicit,
+# comment out the block above and uncomment this one instead:
+#
+# :80 {
+# 	reverse_proxy app:3000
+# }
