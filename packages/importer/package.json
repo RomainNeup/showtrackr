@@ -5,6 +5,18 @@
   "private": true,
   "description": "GDPR export backfill CLI for ShowTrackr (PLAN §8). Reconstructs the episode-by-episode watch history from TV Time's per-show watermark.",
   "license": "MIT",
+  "main": "./dist/run.js",
+  "module": "./dist/run.js",
+  "types": "./dist/run.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/run.d.ts",
+      "import": "./dist/run.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "bin": {
     "showtrackr-import": "./dist/index.js"
   },

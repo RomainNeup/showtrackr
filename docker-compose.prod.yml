@@ -11,10 +11,8 @@ name: showtrackr
 #   app      SvelteKit server (SSR + API + PWA + cron), pulled from GHCR
 #   caddy    OPTIONAL reverse proxy + automatic HTTPS on :443 (profile: tls)
 #
-# The `importer` service is intentionally OMITTED here: its image is NOT
-# published to GHCR. The one-time GDPR backfill is run from source using the
-# dev compose file instead:
-#   docker compose --profile import run --rm importer
+# Importing your TV Time data is done IN THE APP (Settings → Import from TV Time),
+# so there is no separate importer service/image to run.
 #
 # Usage:
 #   cp .env.example .env && $EDITOR .env
@@ -85,6 +83,9 @@ services:
       # adapter-node uses ORIGIN for its CSRF origin check on form POSTs.
       # Must equal the URL you open in the browser, or form actions return 403.
       ORIGIN: ${PUBLIC_BASE_URL}
+      # adapter-node caps request bodies at ~512KB by default, which would reject
+      # the GDPR export upload. Raise it (bytes) for the in-app importer (~250MB).
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-262144000}
     # Published directly to the host for plain-HTTP access: http://<host-ip>:${APP_PORT}
     # `expose` is kept so the optional caddy proxy (profile: tls) can reach it internally.
     ports:

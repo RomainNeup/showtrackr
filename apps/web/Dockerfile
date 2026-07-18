@@ -23,13 +23,22 @@ FROM base AS build
 COPY pnpm-workspace.yaml .npmrc package.json pnpm-lock.yaml* ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/db/package.json ./packages/db/package.json
+# @showtrackr/importer is a workspace dependency of the web app now (the in-app
+# "Import from TV Time" feature). Its manifest is needed so the workspace link
+# resolves during the frozen install.
+COPY packages/importer/package.json ./packages/importer/package.json
 RUN pnpm install --frozen-lockfile
-# Sources required to build the web app and its workspace dependency.
+# Sources required to build the web app and its workspace dependencies.
 COPY packages/db ./packages/db
+COPY packages/importer ./packages/importer
 COPY apps/web ./apps/web
 # @showtrackr/db ships compiled: it MUST be built (tsc -> packages/db/dist) BEFORE the
 # web build, which imports it via its dist/ entrypoints. Order matters.
 RUN pnpm --filter @showtrackr/db run build
+# @showtrackr/importer likewise ships compiled: build it (tsc -> packages/importer/dist)
+# BEFORE the web build so Vite can resolve + bundle its `runImport` library into the
+# SvelteKit server output. Order matters.
+RUN pnpm --filter @showtrackr/importer run build
 # adapter-node emits a self-contained server at apps/web/build/index.js
 RUN pnpm --filter @showtrackr/web run build
 
@@ -40,6 +49,10 @@ FROM base AS prod-deps
 COPY pnpm-workspace.yaml .npmrc package.json pnpm-lock.yaml* ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/db/package.json ./packages/db/package.json
+# @showtrackr/importer manifest is required so its workspace link resolves and its
+# runtime deps (e.g. yauzl is a direct web dep; csv-parse is pulled via importer)
+# are installed into the flat production node_modules.
+COPY packages/importer/package.json ./packages/importer/package.json
 # packages/db source is needed because @showtrackr/db is a workspace dependency
 # (it is symlinked into node_modules by the install).
 COPY packages/db ./packages/db
@@ -63,6 +76,11 @@ COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 # and dist/index.js for the @showtrackr/db symlink in node_modules. drizzle/ (the SQL
 # migrations, resolved as ../drizzle relative to dist/migrate.js) travels with it.
 COPY --from=build --chown=node:node /app/packages/db ./packages/db
+# @showtrackr/importer is bundled into build/ by Vite, so the server does not import
+# it at runtime; we still copy its built package so the node_modules workspace symlink
+# resolves rather than dangling. Its external runtime deps (yauzl, csv-parse) live in
+# the flat node_modules from prod-deps.
+COPY --from=build --chown=node:node /app/packages/importer ./packages/importer
 COPY --from=prod-deps --chown=node:node /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 # Built application.
 COPY --from=build --chown=node:node /app/apps/web/build ./build

@@ -40,6 +40,9 @@ export const refType = pgEnum('ref_type', ['show', 'movie', 'episode']);
 /** catalog_watch_providers.kind — a watch-provider row is for a show or a movie */
 export const watchProviderKind = pgEnum('watch_provider_kind', ['show', 'movie']);
 
+/** import_jobs.status — lifecycle of a per-user GDPR import job */
+export const importStatus = pgEnum('import_status', ['pending', 'running', 'done', 'error']);
+
 /* ───────────────────────────── Users ─────────────────────────────── */
 
 export const users = pgTable(
@@ -364,6 +367,39 @@ export const userStats = pgTable('user_stats', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Per-user "Import from TV Time" background jobs.
+ *
+ * One row tracks a single upload+reconstruction run for a user, updated live from
+ * the pipeline's `onProgress` callback so the UI can poll it. `status` drives the
+ * concurrency guard (a user may not start a new import while one is pending/running)
+ * and the restart-recovery sweep (pending/running jobs from a previous process are
+ * marked stale on the next import request).
+ */
+export const importJobs = pgTable(
+  'import_jobs',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: importStatus('status').notNull().default('pending'),
+    step: integer('step').notNull().default(0),
+    stepLabel: text('step_label'),
+    processed: integer('processed').notNull().default(0),
+    total: integer('total').notNull().default(0),
+    message: text('message'),
+    error: text('error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('import_jobs_user_id_idx').on(t.userId),
+    index('import_jobs_user_status_idx').on(t.userId, t.status),
+  ],
+);
+
 /* ─────────────────────── Barrel of all tables ────────────────────── */
 
 export const schema = {
@@ -385,11 +421,13 @@ export const schema = {
   comments,
   statsMonthly,
   userStats,
+  importJobs,
   // enums (exported for drizzle-kit + convenience)
   followStatus,
   listType,
   refType,
   watchProviderKind,
+  importStatus,
 };
 
 export type Schema = typeof schema;

@@ -32,6 +32,17 @@
 		{/if}
 	</dl>
 
+	<nav class="settings-links">
+		<a class="settings-link" href="/settings/import">
+			<span class="settings-icon" aria-hidden="true">⬆</span>
+			<span class="settings-text">
+				<span class="settings-title">Import from TV Time</span>
+				<span class="muted settings-sub">Upload your GDPR export .zip</span>
+			</span>
+			<span class="chevron" aria-hidden="true">›</span>
+		</a>
+	</nav>
+
 	<form method="POST" action="/logout">
 		<button class="btn btn-block logout" type="submit">Sign out</button>
 	</form>
@@ -89,6 +100,47 @@
 		margin: 0;
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+	}
+
+	.settings-links {
+		margin-bottom: 24px;
+	}
+
+	.settings-link {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 14px 16px;
+		background: var(--bg-elev);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		min-height: 44px;
+	}
+
+	.settings-icon {
+		font-size: 1.2rem;
+		color: var(--accent);
+		width: 24px;
+		text-align: center;
+	}
+
+	.settings-text {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+	}
+
+	.settings-title {
+		font-weight: 600;
+	}
+
+	.settings-sub {
+		font-size: 0.8rem;
+	}
+
+	.chevron {
+		color: var(--text-muted);
+		font-size: 1.4rem;
 	}
 
 	.logout {

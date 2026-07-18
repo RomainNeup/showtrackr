@@ -25,17 +25,15 @@ cp .env.example .env
 
 # 2. Bring the stack up (builds images, runs migrations, starts db + app)
 docker compose up -d
-
-# 3. (Once) import your TV Time GDPR export — expected at ./gdpr-data (repo root)
-#    Full walkthrough: see MIGRATION.md
-docker compose --profile import run --rm importer
 ```
 
 Then open **`http://<host-ip>:8080`** on your phone (same LAN) or
 `http://localhost:8080` on the host, and log in.
 
-**Coming from TV Time?** See **[MIGRATION.md](MIGRATION.md)** for a step-by-step
-guide to requesting your GDPR export and importing your full watch history.
+**Coming from TV Time?** Import your history straight from the app: log in, then go to
+**Profile → Import from TV Time** and upload your GDPR export `.zip` — a progress bar
+shows the reconstruction live. See **[MIGRATION.md](MIGRATION.md)** for the full
+step-by-step guide (requesting the export, the TMDB key, and what gets imported).
 
 > ⚠️ **PWA over plain HTTP:** service workers require a *secure context*
 > (HTTPS or `localhost`). On a bare LAN IP like `http://192.168.1.x:8080` the
@@ -70,9 +68,8 @@ Optional (--profile tls): Caddy fronts the app for automatic HTTPS.
 |------------|----------------------------------|------|
 | `db`       | `postgres:16-alpine`             | Database. Persistent named volume `pgdata`, healthchecked. |
 | `migrate`  | built from `apps/web/Dockerfile` | One-shot: applies Drizzle migrations, then exits. Runs after `db` is healthy. |
-| `app`      | built from `apps/web/Dockerfile` | SvelteKit server (SSR + API + PWA + nightly cron). Published on `${APP_PORT:-8080}`. Starts after `migrate` succeeds. |
+| `app`      | built from `apps/web/Dockerfile` | SvelteKit server (SSR + API + PWA + nightly cron + in-app TV Time import). Published on `${APP_PORT:-8080}`. Starts after `migrate` succeeds. |
 | `caddy`    | `caddy:2-alpine`                 | **Optional** reverse proxy + automatic HTTPS on `:443`. Only runs under `--profile tls`. |
-| `importer` | built from `packages/importer/Dockerfile` | One-shot GDPR backfill under the `import` profile. Mounts `./gdpr-data` read-only. |
 
 Startup order is enforced with healthchecks + `depends_on`
 (`db` healthy → `migrate` completes → `app` starts; with `--profile tls`, `caddy`
@@ -127,9 +124,9 @@ showtrackr/                   # repo root
 ├─ .npmrc                     # node-linker=hoisted (Docker-runtime friendly)
 ├─ caddy/Caddyfile            # reverse proxy config (DevOps)
 ├─ apps/web/                  # SvelteKit app (Frontend) — incl. apps/web/Dockerfile
+│                             #   in-app TV Time import: src/lib/server/import/*
 ├─ packages/db/               # Drizzle schema + migrations (DB)
-├─ packages/importer/         # GDPR backfill CLI (Importer) — incl. its Dockerfile
-└─ gdpr-data/                 # GDPR export (git-ignored), mounted read-only into `importer`
+└─ packages/importer/         # Reconstruction pipeline (library used by the app) + CLI
 ```
 
 ---
@@ -139,7 +136,8 @@ showtrackr/                   # repo root
 All configuration lives in a single root `.env` (never committed). See
 [`.env.example`](.env.example) for the full annotated list:
 `DATABASE_URL`, `POSTGRES_*`, `TMDB_API_KEY`, `SESSION_SECRET`, `PUBLIC_BASE_URL`,
-`ACME_EMAIL` (optional), `GDPR_DATA_DIR`.
+`APP_PORT`, `BODY_SIZE_LIMIT` (upload cap for the in-app TV Time import),
+`ALLOW_REGISTRATION`, `ACME_EMAIL` (optional).
 
 ---
 
@@ -159,7 +157,6 @@ image. It must read `DATABASE_URL` and be idempotent.
 docker compose up -d --build     # rebuild + (re)start db + app (HTTP)  (npm run docker:up)
 docker compose logs -f app       # tail the app logs
 docker compose ps                # service status
-docker compose --profile import run --rm importer   # run the GDPR import (npm run import)
 docker compose --profile tls up -d   # also start the optional Caddy HTTPS proxy
 docker compose down              # stop (keeps volumes/data)
 docker compose config            # validate the compose file

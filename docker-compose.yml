@@ -7,7 +7,10 @@ name: showtrackr
 #   migrate  one-shot: applies Drizzle migrations, then exits
 #   app      SvelteKit server (SSR + API + PWA + cron), built from apps/web
 #   caddy    OPTIONAL reverse proxy + automatic HTTPS on :443 (profile: tls)
-#   importer OPTIONAL one-shot GDPR backfill (profile: import)
+#
+# Importing your TV Time data is now done IN THE APP: log in, then go to
+# Settings → Import from TV Time and upload your GDPR export .zip. There is no
+# separate importer container anymore.
 #
 # Usage:
 #   cp .env.example .env && $EDITOR .env
@@ -17,9 +20,6 @@ name: showtrackr
 #
 #   # Optional HTTPS: also start caddy (needs a real https domain in PUBLIC_BASE_URL)
 #   docker compose --profile tls up -d
-#
-#   # Optional data import (GDPR backfill)
-#   docker compose --profile import run --rm importer
 # =============================================================================
 
 services:
@@ -78,6 +78,9 @@ services:
       # adapter-node uses ORIGIN for its CSRF origin check on form POSTs.
       # Must equal the URL you open in the browser, or form actions return 403.
       ORIGIN: ${PUBLIC_BASE_URL}
+      # adapter-node caps request bodies at ~512KB by default, which would reject
+      # the GDPR export upload. Raise it (bytes) for the in-app importer (~250MB).
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-262144000}
     # Published directly to the host for plain-HTTP access: http://<host-ip>:${APP_PORT}
     # `expose` is kept so the optional caddy proxy (profile: tls) can reach it internally.
     ports:
@@ -121,30 +124,6 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data     # certificates & ACME state (must persist)
       - caddy_config:/config
-    networks:
-      - internal
-
-  importer:
-    build:
-      context: .
-      dockerfile: packages/importer/Dockerfile
-    image: showtrackr-importer:latest
-    profiles:
-      - import
-    restart: "no"
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
-      TMDB_API_KEY: ${TMDB_API_KEY}
-      GDPR_DATA_DIR: ${GDPR_DATA_DIR:-/gdpr-data}
-    volumes:
-      # GDPR export lives at the repo root; mounted read-only.
-      - ./gdpr-data:/gdpr-data:ro
-    depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
       - internal
 

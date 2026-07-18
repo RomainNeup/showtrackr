@@ -1,9 +1,35 @@
 # @showtrackr/importer
 
-GDPR-export backfill CLI for ShowTrackr. Implements the 8-step pipeline from
-`PLAN.md` §8: it reads a TV Time GDPR export, resolves each show against TMDB,
+GDPR-export reconstruction pipeline for ShowTrackr. Implements the 8-step pipeline
+from `PLAN.md` §8: it reads a TV Time GDPR export, resolves each show against TMDB,
 hydrates the local catalog, and reconstructs the full episode-by-episode watch
 history — then recomputes `user_stats` and prints a validation report.
+
+Ships in **two shapes** that share the exact same pipeline:
+
+- **Library (`runImport`)** — the primary path. The SvelteKit app imports
+  `runImport()` from this package to power **Settings → Import from TV Time**
+  (per-user, in-app upload with a live progress bar). It runs against an
+  **existing** user id and never creates or touches any other user.
+- **CLI (`showtrackr-import`)** — a standalone binary for development / bulk
+  backfill that **creates** the user from `user.csv` and imports a local folder.
+
+```ts
+import { runImport } from '@showtrackr/importer';
+
+const report = await runImport({
+  dataDir: '/tmp/extracted-export',   // folder with the CSVs (may be nested)
+  userId: 42,                         // EXISTING account — never created/modified elsewhere
+  tmdbApiKey: process.env.TMDB_API_KEY!,
+  db,                                 // reuse an existing Drizzle client (or pass databaseUrl)
+  onProgress: (p) => console.log(`step ${p.step}/7 · ${p.processed}/${p.total} — ${p.stepLabel}`),
+});
+```
+
+In library / per-user mode, **step 0 does not create a user**: it only upserts the
+profile *preferences* (display name, timezone, language) and the user's own settings
+onto the supplied existing row — the id and email are never changed and no other user
+is read or written.
 
 ## Watch source: tracking-v2 is primary (read this first)
 

@@ -36,11 +36,38 @@ import {
   readWhereToWatch,
 } from "./csv.js";
 
+/**
+ * Live progress emitted by the pipeline. `step` is a 1-based phase index in
+ * [1..TOTAL_STEPS] so the UI can render "step 3/7 · 1240/3601". `processed`/`total`
+ * describe progress within the current phase (total may be 0 when unknown/instant).
+ */
+export interface ImportProgress {
+  step: number;
+  stepLabel: string;
+  processed: number;
+  total: number;
+  message?: string;
+}
+
+/** Number of user-facing phases reported through `onProgress` (denominator of "X/7"). */
+export const TOTAL_STEPS = 7;
+
+export type ProgressCallback = (p: ImportProgress) => void | Promise<void>;
+
 export interface PipelineOptions {
   dataDir: string;
   dryRun: boolean;
   onlyStep?: number;
   tmdb: TmdbClient;
+  /**
+   * When set, the pipeline runs in PER-USER mode: it imports into this EXISTING
+   * user id and NEVER creates a user (step 0 only upserts profile fields + settings
+   * onto the existing row). When undefined, the legacy CLI behaviour applies (step 0
+   * creates/looks-up the user from user.csv).
+   */
+  userId?: number;
+  /** Live progress sink (per-user/app mode). Errors thrown by it are swallowed. */
+  onProgress?: ProgressCallback;
 }
 
 /** (season, episode) coordinate. */
@@ -123,6 +150,10 @@ export class Pipeline {
   private readonly dryRun: boolean;
   private readonly dataDir: string;
   private readonly tmdb: TmdbClient;
+  private readonly onProgress?: ProgressCallback;
+  /** True when a userId was supplied → import into an existing account, never create one. */
+  private readonly perUser: boolean;
+  private readonly presetUserId: number;
 
   private userId = 0;
   private fakeId = -1; // negative synthetic ids used only in dry-run
@@ -148,10 +179,24 @@ export class Pipeline {
     this.dryRun = opts.dryRun;
     this.dataDir = opts.dataDir;
     this.tmdb = opts.tmdb;
+    this.onProgress = opts.onProgress;
+    this.perUser = opts.userId !== undefined;
+    this.presetUserId = opts.userId ?? 0;
   }
 
   private next(): number {
     return this.fakeId--;
+  }
+
+  /** Report progress to the optional sink; never let a sink error break the import. */
+  private async emit(step: number, stepLabel: string, processed: number, total: number, message?: string): Promise<void> {
+    if (!this.onProgress) return;
+    try {
+      await this.onProgress({ step, stepLabel, processed, total, message });
+    } catch {
+      // A failing progress sink (e.g. a DB hiccup writing import_jobs) must never
+      // abort the reconstruction itself.
+    }
   }
 
   /**
@@ -207,8 +252,16 @@ export class Pipeline {
     // parts (user + follows + catalog) unless the requested step is <= that.
     const needContext = only === undefined || only >= 3;
 
-    if (this.shouldRun(0, only)) await this.step0User();
-    else if (needContext) await this.resolveUserId();
+    if (this.perUser) {
+      // App / per-user mode: import into the supplied existing account. `only` is
+      // never used here (the app always runs the full pipeline).
+      this.userId = this.presetUserId;
+      await this.step0ProfileExisting();
+    } else if (this.shouldRun(0, only)) {
+      await this.step0User();
+    } else if (needContext) {
+      await this.resolveUserId();
+    }
 
     if (this.shouldRun(1, only) || needContext) await this.step1Follows(only);
     if (this.shouldRun(2, only) || needContext) await this.step2Catalog();
@@ -289,6 +342,46 @@ export class Pipeline {
     this.userId = rows[0]?.id ?? this.next();
   }
 
+  /**
+   * Per-user (app) variant of step 0: the account ALREADY exists (created by
+   * registration), so we NEVER insert a user or change its id/email. We only
+   * upsert the profile *preferences* (display name, timezone, language) from
+   * user.csv onto this user's own row, plus the user's own settings. All writes
+   * are scoped to `this.userId`; no other user is ever read or modified.
+   */
+  private async step0ProfileExisting(): Promise<void> {
+    const log = new StepLogger(0);
+    const done = log.begin("Profile & settings (existing account)");
+    await this.emit(1, "Profile & settings", 0, 1);
+    const user = readUser(this.dataDir);
+    if (user && !this.dryRun) {
+      const set: Partial<{ displayName: string; timezone: string; language: string }> = {};
+      if (user.name) set.displayName = user.name;
+      if (user.timezone) set.timezone = user.timezone;
+      if (user.language) set.language = user.language;
+      // Never touch email (identity/unique key) or id. Only preferences.
+      if (Object.keys(set).length > 0) {
+        await this.db.update(schema.users).set(set).where(eq(schema.users.id, this.userId));
+      }
+    }
+
+    const settings = readUserSettings(this.dataDir);
+    if (!this.dryRun) {
+      for (const s of settings) {
+        await this.db
+          .insert(schema.settings)
+          .values({ userId: this.userId, key: s.key, value: s.value ?? "" })
+          .onConflictDoUpdate({
+            target: [schema.settings.userId, schema.settings.key],
+            set: { value: s.value ?? "" },
+          });
+      }
+    }
+    log.info(`Updated profile + ${settings.length} settings for existing user ${this.userId}`);
+    await this.emit(1, "Profile & settings", 1, 1);
+    done();
+  }
+
   // ── Step 1: seed show contexts (union) + follow metadata ────────────────────
   private async step1Follows(only?: number): Promise<void> {
     const log = new StepLogger(1);
@@ -351,6 +444,7 @@ export class Pipeline {
     if (only === 1) {
       log.warn("Running step 1 alone does not write follow rows (FK needs catalog); run step 2 too.");
     }
+    await this.emit(1, "Seeding shows & follows", this.shows.size, this.shows.size);
     done();
   }
 
@@ -359,8 +453,13 @@ export class Pipeline {
     const log = new StepLogger(2);
     const done = log.begin("TMDB resolution & catalog hydration");
     let resolved = 0;
+    const totalShows = this.shows.size;
+    let processedShows = 0;
+    await this.emit(2, "Resolving catalog (TMDB)", 0, totalShows);
 
     for (const ctx of this.shows.values()) {
+      processedShows++;
+      await this.emit(2, "Resolving catalog (TMDB)", processedShows, totalShows, ctx.name);
       // 1. resolve TMDB id — try each drifted TVDB id, then fall back to name search.
       let tmdbId: number | null = null;
       for (const candidate of ctx.tvdbCandidates.length ? ctx.tvdbCandidates : [ctx.tvdbId]) {
@@ -611,7 +710,14 @@ export class Pipeline {
     // ---- 3a. PRIMARY: the exhaustive per-episode history from tracking-v2 ----
     const watches = readTrackingWatches(this.dataDir);
     let missingCtx = 0;
+    let processedWatches = 0;
+    await this.emit(3, "Rebuilding watch history", 0, watches.length);
     for (const w of watches) {
+      processedWatches++;
+      // Throttle emits: one every 25 rows is plenty for a smooth bar over 3601 rows.
+      if (processedWatches % 25 === 0) {
+        await this.emit(3, "Rebuilding watch history", processedWatches, watches.length);
+      }
       const ctx = this.resolveShowCtx(w.showTvdbId, w.seriesName);
       if (!ctx || !ctx.showId) {
         missingCtx++;
@@ -680,6 +786,7 @@ export class Pipeline {
       `Watched history: ${this.trackedEpisodes} from tracking + ${this.fallbackEpisodes} from watermark fallback`,
       this.watermarkResolution,
     );
+    await this.emit(3, "Rebuilding watch history", watches.length, watches.length);
     done();
   }
 
@@ -747,6 +854,7 @@ export class Pipeline {
     const rewatches = readRewatchedEpisodes(this.dataDir);
     let applied = 0;
     let missing = 0;
+    await this.emit(4, "Applying rewatches", 0, rewatches.length);
     for (const rw of rewatches) {
       const ctx = this.resolveShowCtx(undefined, rw.tvShowName);
       if (!ctx || !ctx.showId) {
@@ -759,6 +867,7 @@ export class Pipeline {
       applied++;
     }
     log.info(`Applied ${applied} rewatches (watch_count → greatest(existing, 1+cpt)), ${missing} unresolved`);
+    await this.emit(4, "Applying rewatches", rewatches.length, rewatches.length);
     done();
   }
 
@@ -768,6 +877,8 @@ export class Pipeline {
     const done = log.begin("Ratings & emotions");
     const ratings = readEpisodeRatings(this.dataDir);
     const emotions = readEpisodeEmotions(this.dataDir);
+    const total5 = ratings.length + emotions.length;
+    await this.emit(5, "Ratings & emotions", 0, total5);
 
     let ratingsApplied = 0;
     for (const r of ratings) {
@@ -811,6 +922,7 @@ export class Pipeline {
     }
 
     log.info(`Applied ${ratingsApplied} ratings (clamped 1..5), ${emotionsApplied} emotions`);
+    await this.emit(5, "Ratings & emotions", total5, total5);
     done();
   }
 
@@ -827,6 +939,7 @@ export class Pipeline {
   private async step6ListsComments(): Promise<void> {
     const log = new StepLogger(6);
     const done = log.begin("Lists & comments");
+    await this.emit(6, "Lists, comments & movies", 0, 0);
     const lists = readLists(this.dataDir);
     const showIdByTvdb = new Map<number, number>();
     for (const ctx of this.shows.values()) {
@@ -937,7 +1050,10 @@ export class Pipeline {
     // catalog_movies row (and its movie_watch) still exists. See README for the gap.
     const movies = readV1Movies(this.dataDir);
     let movieCount = 0;
+    await this.emit(6, "Importing movies", 0, movies.length);
     for (const m of movies) {
+      // Each movie hits TMDB (search + details), so report per-title progress.
+      await this.emit(6, "Importing movies", movieCount, movies.length, m.title);
       let tmdbId: number | null = null;
       let runtimeMin: number | null = m.runtimeSec && m.runtimeSec > 0 ? Math.round(m.runtimeSec / 60) : null;
       let poster: string | null = null;
@@ -969,6 +1085,7 @@ export class Pipeline {
       movieCount++;
     }
     log.info(`Imported ${movieCount} movies (${this.moviesFailed.length} unresolved on TMDB)`);
+    await this.emit(6, "Importing movies", movies.length, movies.length);
     done();
   }
 
@@ -1024,6 +1141,7 @@ export class Pipeline {
   private async step7Stats(only?: number): Promise<ValidationReport> {
     const log = new StepLogger(7);
     const done = log.begin("Recompute user_stats & validate");
+    await this.emit(7, "Recomputing statistics", 0, 1);
 
     // ---- Seed stats_monthly from the pre-computed monthly aggregates ----
     const monthly = readMonthlyStats(this.dataDir);
@@ -1139,6 +1257,7 @@ export class Pipeline {
     };
 
     this.printReport(report);
+    await this.emit(7, "Recomputing statistics", 1, 1);
     done();
     void only;
     return report;

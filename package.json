@@ -11,7 +11,6 @@
   "scripts": {
     "dev": "pnpm --filter ./apps/web dev",
     "build": "pnpm --filter ./apps/web build",
-    "docker:up": "docker compose up -d --build",
-    "import": "docker compose --profile import run --rm importer"
+    "docker:up": "docker compose up -d --build"
   }
 }

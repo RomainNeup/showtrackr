@@ -28,6 +28,7 @@ import type {
   comments,
   statsMonthly,
   userStats,
+  importJobs,
 } from './schema.js';
 
 /* ─────────────────── Inferred SELECT (row) types ─────────────────── */
@@ -50,6 +51,7 @@ export type ListItem = typeof listItems.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type StatsMonthly = typeof statsMonthly.$inferSelect;
 export type UserStats = typeof userStats.$inferSelect;
+export type ImportJob = typeof importJobs.$inferSelect;
 
 /* ─────────────────── Inferred INSERT types ───────────────────────── */
 
@@ -71,6 +73,8 @@ export type NewListItem = typeof listItems.$inferInsert;
 export type NewComment = typeof comments.$inferInsert;
 export type NewStatsMonthly = typeof statsMonthly.$inferInsert;
 export type NewUserStats = typeof userStats.$inferInsert;
+export type NewImportJob = typeof importJobs.$inferInsert;
+export type ImportJobStatus = ImportJob['status'];
 
 /* ─────────────────── Enum value unions ───────────────────────────── */
 
