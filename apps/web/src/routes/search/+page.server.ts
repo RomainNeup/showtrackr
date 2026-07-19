@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '$lib/server/db';
 import { searchMulti } from '$lib/server/tmdb';
 import { ensureMovie, ensureShow } from '$lib/server/catalog';
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	// Mark shows the user already follows (by TMDB id) so the UI can reflect it.
 	const showTmdbIds = results.filter((r) => r.type === 'show').map((r) => r.tmdbId);
 	let followedTmdbIds: number[] = [];
-	if (showTmdbIds.length) {
+	if (showTmdbIds.length && locals.user) {
 		const cached = await db
 			.select({ tmdbId: schema.catalogShows.tmdbId, id: schema.catalogShows.id })
 			.from(schema.catalogShows)
@@ -25,7 +25,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			const follows = await db
 				.select({ showId: schema.follows.showId })
 				.from(schema.follows)
-				.where(inArray(schema.follows.showId, cachedIds));
+				.where(
+					and(
+						eq(schema.follows.userId, locals.user.id),
+						inArray(schema.follows.showId, cachedIds)
+					)
+				);
 			const followedLocalIds = new Set(follows.map((f) => f.showId));
 			followedTmdbIds = cached.filter((c) => followedLocalIds.has(c.id)).map((c) => c.tmdbId);
 		}
