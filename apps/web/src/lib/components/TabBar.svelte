@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
-	type IconName = 'up-next' | 'library' | 'search' | 'stats' | 'profile';
+	type IconName = 'up-next' | 'library' | 'search' | 'stats' | 'community' | 'profile';
 	type Tab = { href: string; label: string; icon: IconName };
 
 	// Mobile bottom navigation (PLAN §6). Inline SVG icons keep the bundle
@@ -12,6 +12,7 @@
 		{ href: '/library', label: 'Library', icon: 'library' },
 		{ href: '/search', label: 'Search', icon: 'search' },
 		{ href: '/stats', label: 'Stats', icon: 'stats' },
+		{ href: '/community', label: 'Community', icon: 'community' },
 		{ href: '/profile', label: 'Profile', icon: 'profile' }
 	];
 
@@ -54,6 +55,12 @@
 			<line x1="6" y1="20" x2="6" y2="12" />
 			<line x1="12" y1="20" x2="12" y2="4" />
 			<line x1="18" y1="20" x2="18" y2="9" />
+		{:else if name === 'community'}
+			<!-- people / group (Feather "users") -->
+			<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+			<circle cx="9" cy="7" r="4" />
+			<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+			<path d="M16 3.13a4 4 0 0 1 0 7.75" />
 		{:else if name === 'profile'}
 			<!-- person / user -->
 			<circle cx="12" cy="8" r="4" />

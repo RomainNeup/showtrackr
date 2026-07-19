@@ -52,6 +52,10 @@ export const users = pgTable(
     email: text('email').notNull(),
     passwordHash: text('password_hash').notNull(),
     displayName: text('display_name'),
+    // Instance-visibility flag for the Community feature: when true, other users
+    // on this instance can see this user's stats & library (never email/hash).
+    // Defaults to true (visible) so existing installs opt in by default.
+    isPublic: boolean('is_public').notNull().default(true),
     timezone: text('timezone').notNull().default('UTC'),
     language: text('language').notNull().default('en'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

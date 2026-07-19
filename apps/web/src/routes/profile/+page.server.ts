@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '$lib/server/db';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = locals.user!;
@@ -9,6 +9,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.select({
 			email: schema.users.email,
 			displayName: schema.users.displayName,
+			isPublic: schema.users.isPublic,
 			timezone: schema.users.timezone,
 			language: schema.users.language,
 			createdAt: schema.users.createdAt
@@ -24,4 +25,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(1);
 
 	return { profile, stats: stats ?? null };
+};
+
+export const actions: Actions = {
+	// Toggle the instance-visibility of this user's profile (Community feature).
+	// The desired next state arrives as `isPublic=on|<absent>` from the switch.
+	setVisibility: async ({ request, locals }) => {
+		const user = locals.user!;
+		const form = await request.formData();
+		const isPublic = form.get('isPublic') === 'on';
+		await db
+			.update(schema.users)
+			.set({ isPublic })
+			.where(eq(schema.users.id, user.id));
+		return { success: true, isPublic };
+	}
 };
