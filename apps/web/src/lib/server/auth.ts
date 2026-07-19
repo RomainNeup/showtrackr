@@ -125,7 +125,18 @@ function useSecureCookie(): boolean {
 }
 
 export function clearSessionCookie(cookies: Cookies): void {
-	cookies.delete(SESSION_COOKIE, { path: '/' });
+	// Delete with the SAME attributes used to set it (path + secure especially).
+	// A mismatch makes the browser ignore the deletion: SvelteKit's cookies.delete
+	// defaults `secure` to true for non-localhost hosts, so on a plain-HTTP
+	// self-host (cookie set with secure:false) the deletion Set-Cookie would carry
+	// `Secure` over an insecure connection and be dropped — leaving the session
+	// cookie intact, so "Sign out" appears to do nothing.
+	cookies.delete(SESSION_COOKIE, {
+		path: '/',
+		httpOnly: true,
+		sameSite: 'lax',
+		secure: useSecureCookie()
+	});
 }
 
 // ── User lookups ────────────────────────────────────────────────────────────
