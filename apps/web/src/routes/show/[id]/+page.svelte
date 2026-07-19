@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import EpisodeRow from '$lib/components/EpisodeRow.svelte';
 	import WhereToWatch from '$lib/components/WhereToWatch.svelte';
 	import { tmdbImage } from '$lib/tmdb-image';
@@ -28,6 +29,7 @@
 
 <div class="show-page">
 	<header class="hero">
+		<BackButton overlay />
 		{#if backdrop}
 			<img class="backdrop" src={backdrop} alt="" aria-hidden="true" />
 		{/if}

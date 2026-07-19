@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import BackButton from '$lib/components/BackButton.svelte';
 	import RatingControl from '$lib/components/RatingControl.svelte';
 	import WhereToWatch from '$lib/components/WhereToWatch.svelte';
 	import { tmdbImage } from '$lib/tmdb-image';
@@ -11,6 +12,7 @@
 </script>
 
 <div class="page movie-page">
+	<BackButton overlay />
 	<div class="header-row">
 		{#if poster}
 			<img class="poster" src={poster} alt={data.movie.title} />
@@ -67,6 +69,10 @@
 </div>
 
 <style>
+	.movie-page {
+		position: relative;
+	}
+
 	.header-row {
 		display: flex;
 		gap: 16px;

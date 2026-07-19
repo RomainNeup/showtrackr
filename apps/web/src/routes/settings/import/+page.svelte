@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BackButton from '$lib/components/BackButton.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -105,7 +106,7 @@
 
 <div class="page">
 	<div class="page-header">
-		<a class="back" href="/profile" aria-label="Back to profile">‹</a>
+		<BackButton />
 		<h1>Import from TV Time</h1>
 	</div>
 
@@ -179,13 +180,6 @@
 </div>
 
 <style>
-	.back {
-		font-size: 1.8rem;
-		line-height: 1;
-		color: var(--text-muted);
-		padding: 0 4px;
-	}
-
 	.intro {
 		font-size: 0.92rem;
 		line-height: 1.5;
