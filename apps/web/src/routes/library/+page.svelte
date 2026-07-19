@@ -4,8 +4,8 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type Mode = 'series' | 'movies';
-	let mode = $state<Mode>('series');
+	type Mode = 'all' | 'series' | 'movies';
+	let mode = $state<Mode>('all');
 
 	let activeStatus = $state<'all' | string>('all');
 
@@ -24,8 +24,18 @@
 	};
 
 	const count = $derived(
-		mode === 'series' ? `${data.shows.length} shows` : `${data.movies.length} movies`
+		mode === 'series'
+			? `${data.shows.length} shows`
+			: mode === 'movies'
+				? `${data.movies.length} movies`
+				: `${data.shows.length} shows · ${data.movies.length} movies`
 	);
+
+	const modes: { key: Mode; label: string }[] = [
+		{ key: 'all', label: 'All' },
+		{ key: 'series', label: 'Series' },
+		{ key: 'movies', label: 'Movies' }
+	];
 </script>
 
 <div class="page">
@@ -35,27 +45,46 @@
 	</div>
 
 	<div class="switch" role="tablist" aria-label="Library kind">
-		<button
-			role="tab"
-			aria-selected={mode === 'series'}
-			class="seg"
-			class:active={mode === 'series'}
-			onclick={() => (mode = 'series')}
-		>
-			Series
-		</button>
-		<button
-			role="tab"
-			aria-selected={mode === 'movies'}
-			class="seg"
-			class:active={mode === 'movies'}
-			onclick={() => (mode = 'movies')}
-		>
-			Movies
-		</button>
+		{#each modes as m (m.key)}
+			<button
+				role="tab"
+				aria-selected={mode === m.key}
+				class="seg"
+				class:active={mode === m.key}
+				onclick={() => (mode = m.key)}
+			>
+				{m.label}
+			</button>
+		{/each}
 	</div>
 
-	{#if mode === 'series'}
+	{#if mode === 'all'}
+		{#if data.shows.length === 0 && data.movies.length === 0}
+			<div class="empty">Your library is empty — follow a show or mark a film as watched.</div>
+		{:else}
+			<div class="grid">
+				{#each data.shows as s (s.showId)}
+					<ShowCard
+						href={`/show/${s.showId}`}
+						title={s.name}
+						posterPath={s.posterPath}
+						favorite={s.isFavorite}
+						color={s.color}
+						subtitle={`${s.watchedEpisodes} watched`}
+					/>
+				{/each}
+				{#each data.movies as m (m.movieId)}
+					<ShowCard
+						href={`/movie/${m.movieId}`}
+						title={m.title}
+						posterPath={m.posterPath}
+						badge={m.watchCount > 1 ? `×${m.watchCount}` : null}
+						subtitle="Watched"
+					/>
+				{/each}
+			</div>
+		{/if}
+	{:else if mode === 'series'}
 		<div class="filters" role="tablist" aria-label="Filter by status">
 			{#each ['all', ...data.statuses] as status (status)}
 				<button
