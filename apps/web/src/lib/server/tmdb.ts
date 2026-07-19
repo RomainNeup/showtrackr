@@ -270,6 +270,57 @@ export function selectRegionProviders(
 	};
 }
 
+// ── "More like this" recommendations ────────────────────────────────────────
+
+/** Normalised recommendation card for a show. */
+export type TmdbShowRec = { type: 'show'; tmdbId: number; name: string; posterPath: string | null };
+/** Normalised recommendation card for a movie. */
+export type TmdbMovieRec = { type: 'movie'; tmdbId: number; title: string; posterPath: string | null };
+
+/** Cap on how many recommendation cards we surface per detail page. */
+const REC_LIMIT = 18;
+
+/** Raw TMDB recommendation/similar list entry (shared tv+movie fields). */
+type TmdbRecRaw = { id: number; name?: string; title?: string; poster_path: string | null };
+
+/**
+ * Fetch a raw recommendations list, falling back to the "similar" endpoint when
+ * TMDB returns no recommendations (common for niche/older titles). Keeps ordering
+ * as TMDB returns it.
+ */
+async function fetchRecs(kind: 'tv' | 'movie', tmdbId: number): Promise<TmdbRecRaw[]> {
+	const rec = await tmdbFetch<{ results?: TmdbRecRaw[] }>(`/${kind}/${tmdbId}/recommendations`);
+	if (rec.results?.length) return rec.results;
+	const sim = await tmdbFetch<{ results?: TmdbRecRaw[] }>(`/${kind}/${tmdbId}/similar`);
+	return sim.results ?? [];
+}
+
+export async function getShowRecommendations(tmdbId: number): Promise<TmdbShowRec[]> {
+	const results = await fetchRecs('tv', tmdbId);
+	return results
+		.filter((r) => r.poster_path)
+		.slice(0, REC_LIMIT)
+		.map((r) => ({
+			type: 'show' as const,
+			tmdbId: r.id,
+			name: r.name ?? r.title ?? 'Untitled',
+			posterPath: r.poster_path
+		}));
+}
+
+export async function getMovieRecommendations(tmdbId: number): Promise<TmdbMovieRec[]> {
+	const results = await fetchRecs('movie', tmdbId);
+	return results
+		.filter((r) => r.poster_path)
+		.slice(0, REC_LIMIT)
+		.map((r) => ({
+			type: 'movie' as const,
+			tmdbId: r.id,
+			title: r.title ?? r.name ?? 'Untitled',
+			posterPath: r.poster_path
+		}));
+}
+
 export async function searchMulti(query: string): Promise<TmdbSearchItem[]> {
 	const q = query.trim();
 	if (!q) return [];

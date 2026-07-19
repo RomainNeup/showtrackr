@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import EpisodeRow from '$lib/components/EpisodeRow.svelte';
+	import RecommendationRail from '$lib/components/RecommendationRail.svelte';
 	import WhereToWatch from '$lib/components/WhereToWatch.svelte';
 	import { tmdbImage } from '$lib/tmdb-image';
 	import type { PageData } from './$types';
@@ -139,6 +140,8 @@
 				{/if}
 			</section>
 		{/each}
+
+		<RecommendationRail items={data.recommendations} action="?/open" />
 	</div>
 </div>
 

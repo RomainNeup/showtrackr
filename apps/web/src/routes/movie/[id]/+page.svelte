@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import BackButton from '$lib/components/BackButton.svelte';
 	import RatingControl from '$lib/components/RatingControl.svelte';
+	import RecommendationRail from '$lib/components/RecommendationRail.svelte';
 	import WhereToWatch from '$lib/components/WhereToWatch.svelte';
 	import { tmdbImage } from '$lib/tmdb-image';
 	import type { PageData } from './$types';
@@ -66,6 +67,8 @@
 	{#if data.providers}
 		<WhereToWatch providers={data.providers} />
 	{/if}
+
+	<RecommendationRail items={data.recommendations} action="?/openMovie" />
 </div>
 
 <style>

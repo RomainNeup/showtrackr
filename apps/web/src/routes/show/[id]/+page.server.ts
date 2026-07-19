@@ -1,7 +1,8 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { asc, eq } from 'drizzle-orm';
 import { db, schema, type CatalogShow } from '$lib/server/db';
-import { ensureSeasonEpisodes } from '$lib/server/catalog';
+import { ensureSeasonEpisodes, ensureShow } from '$lib/server/catalog';
+import { getShowRecommendations } from '$lib/server/tmdb';
 import { getRegionProviders } from '$lib/server/watch-providers';
 import {
 	addRewatch,
@@ -77,9 +78,29 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			a.seasonNumber - b.seasonNumber
 	);
 
-	// "Where to Watch" providers (JustWatch-powered): cache-through the full
-	// multi-region TMDB response, then pick the configured region (FR) for display.
-	const providers = await getRegionProviders('show', show.tmdbId);
+	// "Where to Watch" providers + "More like this" recommendations, in parallel.
+	// Recommendations come straight from TMDB (not yet in our local catalog); we
+	// exclude the current show and every show this user already follows.
+	const [providers, recommendations] = await Promise.all([
+		// "Where to Watch" providers (JustWatch-powered): cache-through the full
+		// multi-region TMDB response, then pick the configured region (FR) for display.
+		getRegionProviders('show', show.tmdbId),
+		(async () => {
+			const [recs, followed] = await Promise.all([
+				getShowRecommendations(show.tmdbId),
+				// USER-SCOPED: tmdbIds of shows this user already follows.
+				db
+					.select({ tmdbId: schema.catalogShows.tmdbId })
+					.from(schema.follows)
+					.innerJoin(schema.catalogShows, eq(schema.follows.showId, schema.catalogShows.id))
+					.where(eq(schema.follows.userId, user.id))
+			]);
+			const exclude = new Set<number>([show.tmdbId, ...followed.map((f) => f.tmdbId)]);
+			return recs
+				.filter((r) => !exclude.has(r.tmdbId))
+				.map((r) => ({ tmdbId: r.tmdbId, name: r.name, posterPath: r.posterPath }));
+		})()
+	]);
 
 	return {
 		show: {
@@ -96,13 +117,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		providers,
 		follow: follow
 			? { status: follow.status as FollowStatus, isFavorite: follow.isFavorite }
-			: null
+			: null,
+		recommendations
 	};
 };
 
 const STATUSES: FollowStatus[] = ['watching', 'upcoming', 'stopped', 'archived'];
 
 export const actions: Actions = {
+	// Cache a recommended show locally (it's a raw TMDB result) then open its page.
+	open: async ({ request, locals }) => {
+		if (!locals.user) throw error(401, 'Not authenticated');
+		const tmdbId = Number((await request.formData()).get('tmdbId'));
+		const show = await ensureShow(tmdbId);
+		throw redirect(303, `/show/${show.id}`);
+	},
+
 	toggleEpisode: async ({ request, locals }) => {
 		const user = locals.user!;
 		const form = await request.formData();
