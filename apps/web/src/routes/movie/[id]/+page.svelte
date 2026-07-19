@@ -79,6 +79,9 @@
 	.header-row {
 		display: flex;
 		gap: 16px;
+		/* Clear the overlay BackButton (top-left, notch-safe) so it floats above
+		   the poster/title row instead of covering the poster. */
+		margin-top: calc(env(safe-area-inset-top, 0px) + 40px);
 		margin-bottom: 16px;
 	}
 

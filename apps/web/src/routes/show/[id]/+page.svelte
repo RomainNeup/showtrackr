@@ -165,7 +165,9 @@
 		position: relative;
 		display: flex;
 		gap: 16px;
-		padding: 20px 16px;
+		/* Reserve a notch-safe top strip so the overlay BackButton floats over the
+		   backdrop ABOVE the poster/title row instead of covering the poster. */
+		padding: calc(env(safe-area-inset-top, 0px) + 56px) 16px 20px;
 		align-items: flex-end;
 		background: linear-gradient(to top, var(--bg) 10%, transparent);
 	}

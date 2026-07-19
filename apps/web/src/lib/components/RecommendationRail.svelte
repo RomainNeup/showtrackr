@@ -54,9 +54,9 @@
 		gap: 12px;
 		overflow-x: auto;
 		scroll-snap-type: x proximity;
-		/* Bleed to the page edges so cards can scroll off-screen on mobile. */
-		margin: 0 -16px;
-		padding: 0 16px 4px;
+		/* Stay within the page content width (matches the .page 16px inset); the
+		   rail scrolls horizontally inside those bounds rather than full-bleed. */
+		padding-bottom: 4px;
 		-webkit-overflow-scrolling: touch;
 	}
 
