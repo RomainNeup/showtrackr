@@ -6,7 +6,7 @@
  * These functions are the single source of truth used by the route form
  * actions — keeping business logic out of the `.svelte`/route glue.
  */
-import { and, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { db, schema, type CatalogShow, type FollowStatus } from './db';
 import { ensureSeasonEpisodes, ensureShow } from './catalog';
 import { recomputeUserStats } from './stats';
@@ -530,4 +530,31 @@ export async function ratingsForShow(userId: number, showId: number) {
 		.innerJoin(schema.catalogEpisodes, eq(schema.episodeRatings.episodeId, schema.catalogEpisodes.id))
 		.where(and(eq(schema.episodeRatings.userId, userId), eq(schema.catalogEpisodes.showId, showId)));
 	return new Map(ratings.map((r) => [r.episodeId, r.rating]));
+}
+
+export type MovieLibraryItem = {
+	movieId: number;
+	title: string;
+	posterPath: string | null;
+	watchedAt: Date | null;
+	watchCount: number;
+};
+
+/**
+ * The user's watched movies (their movie library), most-recently-watched first.
+ * Scoped to `userId` — never returns another user's movies.
+ */
+export async function getMovieLibrary(userId: number): Promise<MovieLibraryItem[]> {
+	return db
+		.select({
+			movieId: schema.catalogMovies.id,
+			title: schema.catalogMovies.title,
+			posterPath: schema.catalogMovies.posterPath,
+			watchedAt: schema.movieWatches.watchedAt,
+			watchCount: schema.movieWatches.watchCount
+		})
+		.from(schema.movieWatches)
+		.innerJoin(schema.catalogMovies, eq(schema.movieWatches.movieId, schema.catalogMovies.id))
+		.where(eq(schema.movieWatches.userId, userId))
+		.orderBy(desc(schema.movieWatches.watchedAt));
 }

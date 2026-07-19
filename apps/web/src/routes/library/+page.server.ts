@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db, schema, type FollowStatus } from '$lib/server/db';
-import { setFavorite, setFollowStatus, watchedCountsByShow } from '$lib/server/library';
+import { getMovieLibrary, setFavorite, setFollowStatus, watchedCountsByShow } from '$lib/server/library';
 import { showColorsByUser } from '$lib/server/show-status';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -16,9 +16,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.innerJoin(schema.catalogShows, eq(schema.follows.showId, schema.catalogShows.id))
 		.where(eq(schema.follows.userId, user.id));
 
-	const [watchedCounts, colors] = await Promise.all([
+	const [watchedCounts, colors, movies] = await Promise.all([
 		watchedCountsByShow(user.id),
-		showColorsByUser(user.id)
+		showColorsByUser(user.id),
+		getMovieLibrary(user.id)
 	]);
 
 	const shows = rows.map((r) => ({
@@ -32,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		color: colors.get(r.catalog_shows.id) ?? 'neutral'
 	}));
 
-	return { shows, statuses: STATUSES };
+	return { shows, movies, statuses: STATUSES };
 };
 
 export const actions: Actions = {

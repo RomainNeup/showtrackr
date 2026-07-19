@@ -4,6 +4,9 @@
 
 	let { data }: { data: PageData } = $props();
 
+	type Mode = 'series' | 'movies';
+	let mode = $state<Mode>('series');
+
 	let activeStatus = $state<'all' | string>('all');
 
 	const filtered = $derived(
@@ -19,64 +22,105 @@
 		stopped: 'Stopped',
 		archived: 'Archived'
 	};
+
+	const count = $derived(
+		mode === 'series' ? `${data.shows.length} shows` : `${data.movies.length} movies`
+	);
 </script>
 
 <div class="page">
 	<div class="page-header">
 		<h1>Library</h1>
-		<span class="muted count">{data.shows.length} shows</span>
+		<span class="muted count">{count}</span>
 	</div>
 
-	<div class="filters" role="tablist" aria-label="Filter by status">
-		{#each ['all', ...data.statuses] as status (status)}
-			<button
-				role="tab"
-				aria-selected={activeStatus === status}
-				class="chip"
-				class:active={activeStatus === status}
-				onclick={() => (activeStatus = status)}
-			>
-				{labels[status] ?? status}
-			</button>
-		{/each}
+	<div class="switch" role="tablist" aria-label="Library kind">
+		<button
+			role="tab"
+			aria-selected={mode === 'series'}
+			class="seg"
+			class:active={mode === 'series'}
+			onclick={() => (mode = 'series')}
+		>
+			Series
+		</button>
+		<button
+			role="tab"
+			aria-selected={mode === 'movies'}
+			class="seg"
+			class:active={mode === 'movies'}
+			onclick={() => (mode = 'movies')}
+		>
+			Movies
+		</button>
 	</div>
 
-	<ul class="legend" aria-label="Status colour legend">
-		<li><span class="dot yellow"></span>Watching</li>
-		<li><span class="dot green"></span>Up to date</li>
-		<li><span class="dot purple"></span>Ended</li>
-		<li><span class="dot neutral"></span>Unknown</li>
-	</ul>
-
-	{#if favorites.length > 0 && activeStatus === 'all'}
-		<h2 class="section-title">★ Favorites</h2>
-		<div class="grid">
-			{#each favorites as s (s.showId)}
-				<ShowCard
-					href={`/show/${s.showId}`}
-					title={s.name}
-					posterPath={s.posterPath}
-					favorite={true}
-					color={s.color}
-					subtitle={`${s.watchedEpisodes} watched`}
-				/>
+	{#if mode === 'series'}
+		<div class="filters" role="tablist" aria-label="Filter by status">
+			{#each ['all', ...data.statuses] as status (status)}
+				<button
+					role="tab"
+					aria-selected={activeStatus === status}
+					class="chip"
+					class:active={activeStatus === status}
+					onclick={() => (activeStatus = status)}
+				>
+					{labels[status] ?? status}
+				</button>
 			{/each}
 		</div>
-	{/if}
 
-	{#if filtered.length === 0}
-		<div class="empty">No shows here yet.</div>
+		<ul class="legend" aria-label="Status colour legend">
+			<li><span class="dot yellow"></span>Watching</li>
+			<li><span class="dot green"></span>Up to date</li>
+			<li><span class="dot purple"></span>Ended</li>
+			<li><span class="dot neutral"></span>Unknown</li>
+		</ul>
+
+		{#if favorites.length > 0 && activeStatus === 'all'}
+			<h2 class="section-title">★ Favorites</h2>
+			<div class="grid">
+				{#each favorites as s (s.showId)}
+					<ShowCard
+						href={`/show/${s.showId}`}
+						title={s.name}
+						posterPath={s.posterPath}
+						favorite={true}
+						color={s.color}
+						subtitle={`${s.watchedEpisodes} watched`}
+					/>
+				{/each}
+			</div>
+		{/if}
+
+		{#if filtered.length === 0}
+			<div class="empty">No shows here yet.</div>
+		{:else}
+			<h2 class="section-title">{labels[activeStatus] ?? activeStatus}</h2>
+			<div class="grid">
+				{#each filtered as s (s.showId)}
+					<ShowCard
+						href={`/show/${s.showId}`}
+						title={s.name}
+						posterPath={s.posterPath}
+						favorite={s.isFavorite}
+						color={s.color}
+						subtitle={`${s.watchedEpisodes} watched`}
+					/>
+				{/each}
+			</div>
+		{/if}
+	{:else if data.movies.length === 0}
+		<div class="empty">No movies yet — mark a film as watched to see it here.</div>
 	{:else}
-		<h2 class="section-title">{labels[activeStatus] ?? activeStatus}</h2>
 		<div class="grid">
-			{#each filtered as s (s.showId)}
+			{#each data.movies as m (m.movieId)}
 				<ShowCard
-					href={`/show/${s.showId}`}
-					title={s.name}
-					posterPath={s.posterPath}
-					favorite={s.isFavorite}
-					color={s.color}
-					subtitle={`${s.watchedEpisodes} watched`}
+					href={`/movie/${m.movieId}`}
+					title={m.title}
+					posterPath={m.posterPath}
+					badge={m.watchCount > 1 ? `×${m.watchCount}` : null}
+					subtitle="Watched"
 				/>
 			{/each}
 		</div>
@@ -87,6 +131,33 @@
 	.count {
 		margin-left: auto;
 		font-size: 0.85rem;
+	}
+
+	.switch {
+		display: flex;
+		gap: 4px;
+		padding: 4px;
+		margin-bottom: 12px;
+		background: var(--bg-elev);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+	}
+
+	.seg {
+		flex: 1;
+		border: none;
+		background: transparent;
+		color: var(--text);
+		border-radius: 999px;
+		padding: 8px 14px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		min-height: 40px;
+	}
+
+	.seg.active {
+		background: var(--accent);
+		color: var(--accent-contrast);
 	}
 
 	.filters {
